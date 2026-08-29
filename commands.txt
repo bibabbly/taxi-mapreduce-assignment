@@ -1,0 +1,51 @@
+# ENVIRONMENT
+# Hadoop 3.3.6 pseudo-distributed, Windows 11, JDK 1.8.0_202
+
+start-dfs.cmd
+start-yarn.cmd
+jps
+yarn node -list -all
+
+# PARQUET TO CSV
+python convert_to_csv.py
+
+# HDFS STRUCTURE
+hdfs dfs -mkdir -p /taxi_project/input/raw
+hdfs dfs -mkdir -p /taxi_project/input/cleaned
+hdfs dfs -mkdir -p /taxi_project/output/hourly
+hdfs dfs -mkdir -p /taxi_project/output/locations
+hdfs dfs -mkdir -p /taxi_project/output/revenue
+hdfs dfs -mkdir -p /taxi_project/output/payment
+hdfs dfs -mkdir -p /taxi_project/output/routes
+hdfs dfs -mkdir -p /taxi_project/output/anomalies
+hdfs dfs -mkdir -p /taxi_project/archive
+
+# UPLOAD
+hdfs dfs -put yellow_tripdata_2024-01.csv /taxi_project/input/raw/
+hdfs dfs -put yellow_tripdata_2024-02.csv /taxi_project/input/raw/
+hdfs dfs -put yellow_tripdata_2024-03.csv /taxi_project/input/raw/
+
+hdfs dfs -ls -h /taxi_project/input/raw/
+hdfs dfs -du -h /taxi_project/input/raw/
+hdfs dfsadmin -report
+
+# JOB 1 - HOURLY DEMAND  (application_1788043663698_0003)
+hdfs dfs -rm -r /taxi_project/output/hourly
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -files "mappers/mapper_hourly.py,reducers/reducer_hourly.py" -input /taxi_project/input/raw -output /taxi_project/output/hourly -mapper "python mapper_hourly.py" -reducer "python reducer_hourly.py"
+hdfs dfs -cat /taxi_project/output/hourly/part-00000
+
+# JOB 2 - REVENUE BY PICKUP ZONE  (application_1788043663698_0004)
+hdfs dfs -rm -r /taxi_project/output/revenue
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -files "mappers/mapper_revenue.py,reducers/reducer_revenue.py" -input /taxi_project/input/raw -output /taxi_project/output/revenue -mapper "python mapper_revenue.py" -reducer "python reducer_revenue.py"
+hdfs dfs -cat /taxi_project/output/revenue/part-00000
+
+# JOB 3 - TOP 10 BY REVENUE, STAGE 2  (application_1788043663698_0005)
+# Reads the HDFS output of Job 2. Single reducer forces a global ordering.
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -D mapreduce.job.reduces=1 -files "mappers/mapper_topn.py,reducers/reducer_topn.py" -input /taxi_project/output/revenue -output /taxi_project/output/top10_revenue -mapper "python mapper_topn.py" -reducer "python reducer_topn.py"
+hdfs dfs -cat /taxi_project/output/top10_revenue/part-00000
+
+# WINDOWS NOTES
+# -files values must use forward slashes; backslashes fail URI parsing
+# -files list must be quoted or cmd.exe splits on the comma
+# NodeManager local dirs need winutils chmod 755
+# HADOOP_HOME must be passed to containers via mapreduce.map.env
