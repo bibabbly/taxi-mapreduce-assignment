@@ -49,3 +49,18 @@ hdfs dfs -cat /taxi_project/output/top10_revenue/part-00000
 # -files list must be quoted or cmd.exe splits on the comma
 # NodeManager local dirs need winutils chmod 755
 # HADOOP_HOME must be passed to containers via mapreduce.map.env
+
+
+
+
+# JOB 4 - PAYMENT METHOD  (application_1788068098213_0001)
+hdfs dfs -rm -r /taxi_project/output/payment
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -files "mappers/mapper_payment.py,reducers/reducer_payment.py" -input /taxi_project/input/raw -output /taxi_project/output/payment -mapper "python mapper_payment.py" -reducer "python reducer_payment.py"
+
+# JOB 5 - DISTANCE CATEGORIES  (application_1788074331272_0001)
+hdfs dfs -rm -r /taxi_project/output/distance
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -files "mappers/mapper_distance.py,reducers/reducer_distance.py" -input /taxi_project/input/raw -output /taxi_project/output/distance -mapper "python mapper_distance.py" -reducer "python reducer_distance.py"
+
+# JOB 6 - ANOMALY DETECTION  (application_1788074331272_0002)
+hdfs dfs -rm -r /taxi_project/output/anomalies
+hadoop jar C:\hadoop\share\hadoop\tools\lib\hadoop-streaming-3.3.6.jar -files "mappers/mapper_anomaly.py,reducers/reducer_anomaly.py" -input /taxi_project/input/raw -output /taxi_project/output/anomalies -mapper "python mapper_anomaly.py" -reducer "python reducer_anomaly.py"
